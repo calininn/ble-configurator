@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>nRF52840 BLE Counter</title>
+    <style>
+        body { font-family: monospace; padding: 20px; max-width: 400px; margin: 0 auto; background-color: #f4f4f9; }
+        button { padding: 12px 24px; font-size: 16px; margin-bottom: 20px; cursor: pointer; width: 100%; }
+        .data-box { background: #fff; padding: 20px; border-radius: 8px; border: 1px solid #ccc; text-align: center; }
+        #counter-value { font-size: 48px; font-weight: bold; color: #0056b3; margin-top: 10px; }
+        #status { color: #555; margin-bottom: 20px; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+    <h2>BLE Counter Viewer</h2>
+    <div id="status">Status: Disconnected</div>
+    <button id="connectBtn">Connect</button>
+    
+    <div class="data-box">
+        <div>Counter Value:</div>
+        <div id="counter-value">0</div>
+    </div>
+
+    <script>
+        const connectBtn = document.getElementById('connectBtn');
+        const statusDiv = document.getElementById('status');
+        const counterDiv = document.getElementById('counter-value');
+
+        const SERVICE_UUID = 0xABCD;
+        const CHAR_UUID = 0x1234;
+
+        connectBtn.addEventListener('click', async () => {
+            try {
+                statusDiv.textContent = 'Status: Requesting Bluetooth Device...';
+                
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: [SERVICE_UUID] }]
+                });
+
+                statusDiv.textContent = 'Status: Connecting to GATT Server...';
+                device.addEventListener('gattserverdisconnected', onDisconnected);
+                const server = await device.gatt.connect();
+
+                statusDiv.textContent = 'Status: Getting Service...';
+                const service = await server.getPrimaryService(SERVICE_UUID);
+
+                statusDiv.textContent = 'Status: Getting Characteristic...';
+                const characteristic = await service.getCharacteristic(CHAR_UUID);
+
+                statusDiv.textContent = 'Status: Starting Notifications...';
+                await characteristic.startNotifications();
+                
+                characteristic.addEventListener('characteristicvaluechanged', handleCharacteristicValueChanged);
+                
+                statusDiv.textContent = 'Status: Connected and receiving data';
+                connectBtn.disabled = true;
+
+            } catch (error) {
+                statusDiv.textContent = 'Error: ' + error.message;
+            }
+        });
+
+        function handleCharacteristicValueChanged(event) {
+            const value = event.target.value;
+            // uint32_t передается как 4 байта. Архитектура ARM (nRF52) использует little-endian.
+            // Флаг true в getUint32 указывает на чтение в формате little-endian.
+            const counter = value.getUint32(0, true);
+            counterDiv.textContent = counter;
+        }
+
+        function onDisconnected(event) {
+            statusDiv.textContent = 'Status: Device disconnected.';
+            connectBtn.disabled = false;
+        }
+    </script>
+</body>
+</html>
