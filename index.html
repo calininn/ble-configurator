@@ -36,7 +36,8 @@
                 statusDiv.textContent = 'Status: Requesting Bluetooth Device...';
                 
                 const device = await navigator.bluetooth.requestDevice({
-                    filters: [{ services: [SERVICE_UUID] }]
+                    filters: [{ name: 'Zephyr' }], 
+                    optionalServices: [SERVICE_UUID]
                 });
 
                 statusDiv.textContent = 'Status: Connecting to GATT Server...';
@@ -64,8 +65,6 @@
 
         function handleCharacteristicValueChanged(event) {
             const value = event.target.value;
-            // uint32_t передается как 4 байта. Архитектура ARM (nRF52) использует little-endian.
-            // Флаг true в getUint32 указывает на чтение в формате little-endian.
             const counter = value.getUint32(0, true);
             counterDiv.textContent = counter;
         }
